@@ -6,6 +6,26 @@
     <title>Consulta de Cuentas e Inmuebles</title>
     <!-- Librería para exportar nativamente a Excel (.xlsx) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+	<script>
+  // Pega aquí la URL que copiaste de Google Apps Script
+  const API_URL = "https://script.google.com/macros/s/AKfycbxhNU1MZrlngOES0Ot7mOsgoTP0AWwhLMRivBXXU95Eqz32mkRXZvuBBdJblgO2Dy4/exec";
+
+  // Función para cargar los datos en tu página al abrirla
+  async function cargarPagos() {
+    try {
+      const respuesta = await fetch(API_URL);
+      const datos = await respuesta.json();
+      console.log("Datos cargados correctamente:", datos);
+      
+      // Aquí puedes programar cómo mostrar los datos en tu tabla HTML
+    } catch (error) {
+      console.error("Error al conectar con Google Sheets:", error);
+    }
+  }
+
+  // Llamar a la función al cargar la página
+  window.onload = cargarPagos;
+</script>
     <style>
         :root {
             --primary: #1e3a8a;
