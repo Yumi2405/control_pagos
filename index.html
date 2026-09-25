@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Cuentas e Inmuebles</title>
+    <!-- Librería para exportar nativamente a Excel (.xlsx) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #3b82f6;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid var(--border); position: relative; }
+        h1 { color: var(--primary); font-size: 1.8rem; }
+
+        .btn-admin-login {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #cbd5e1;
+            color: #334155;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .kpi-card { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 5px solid var(--success); }
+        .kpi-title { font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: bold; }
+        .kpi-value { font-size: 1.6rem; font-weight: bold; margin-top: 5px; color: var(--primary); }
+
+        .panel { background: var(--card-bg); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        .panel-title { font-size: 1.2rem; color: var(--primary); margin-bottom: 15px; font-weight: bold; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+        .form-group { display: flex; flex-direction: column; }
+        label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; color: #475569; }
+        input, select, button { padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; }
+
+        button.btn-primary { background-color: var(--primary-light); color: white; border: none; cursor: pointer; font-weight: bold; }
+        button.btn-primary:hover { background-color: var(--primary); }
+        button.btn-secundary { background-color: #64748b; color: white; border: none; cursor: pointer; font-weight: bold; }
+
+        .table-responsive { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        th { background-color: #f1f5f9; color: #334155; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        
+        /* Ocultar elementos de administración por defecto */
+        .admin-only { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <button class="btn-admin-login" id="btn-login" onclick="toggleAdmin()">Acceso Administrador 🔒</button>
+        <h1>Consulta General</h1>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: 5px;">Puede consultar el estado de cuenta para cada inmueble o manutencion</p>
+    </header>
+
+    <!-- Indicador General -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-title">Total Recibido (COP)</div>
+            <div class="kpi-value" id="kpi-total-pagos">$ 0</div>
+        </div>
+        <div class="kpi-card" style="border-left-color: var(--primary-light);">
+            <div class="kpi-title">Registros Consultados</div>
+            <div class="kpi-value" id="kpi-total-registros">0</div>
+        </div>
+    </div>
+
+    <!-- Filtros de Consulta (Disponible para Todos) -->
+    <div class="panel">
+        <div class="panel-title">Validación de Cuentas por Unidad o Periodo</div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="filtro-apartaestudio">Seleccionar Unidad / Inmueble</label>
+                <select id="filtro-apartaestudio" onchange="filtrarDatos()">
+                    <option value="TODOS">Todas las Unidades</option>
+                    <option value="Apartaestudio 1">Apartaestudio 1</option>
+                    <option value="Apartaestudio 2">Apartaestudio 2</option>
+                    <option value="Apartaestudio 3">Apartaestudio 3</option>
+                    <option value="Apartaestudio 4">Apartaestudio 4</option>
+                    <option value="Apartaestudio 5">Apartaestudio 5</option>
+                    <option value="Apartaestudio 6">Apartaestudio 6</option>
+                    <option value="Apartaestudio 7">Apartaestudio 7</option>
+                    <option value="Apartaestudio 8">Apartaestudio 8</option>
+                    <option value="Local 1">Local 1</option>
+                    <option value="Local 2">Local 2</option>
+		    <option value="Garaje">Garaje</option>
+                    <option value="Manutención">Manutención</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filtro-fecha">Validar Periodo (ej. feb-25, ene-24)</label>
+                <input type="text" id="filtro-fecha" placeholder="Escriba periodo..." oninput="filtrarDatos()">
+            </div>
+            <div class="form-group">
+                <button class="btn-secundary" onclick="mostrarTodos()">Ver Todos los Registros</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulario Exclusivo para Administrador -->
+    <div class="panel admin-only" id="panel-admin">
+        <div class="panel-title" style="color: var(--success);">+ Ingresar Nuevo Registro (Modo Administrador)</div>
+        <form id="form-registro">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="fecha">Periodo / Fecha</label>
+                    <input type="text" id="fecha" placeholder="Ej. mar-25" required>
+                </div>
+                <div class="form-group">
+                    <label for="apartaestudio">Unidad / Inmueble</label>
+                    <select id="apartaestudio" required>
+                        <option value="Apartaestudio 1">Apartaestudio 1</option>
+                        <option value="Apartaestudio 2">Apartaestudio 2</option>
+                        <option value="Apartaestudio 3">Apartaestudio 3</option>
+                        <option value="Apartaestudio 4">Apartaestudio 4</option>
+                        <option value="Apartaestudio 5">Apartaestudio 5</option>
+                        <option value="Apartaestudio 6">Apartaestudio 6</option>
+                        <option value="Apartaestudio 7">Apartaestudio 7</option>
+                        <option value="Apartaestudio 8">Apartaestudio 8</option>
+                        <option value="Local 1">Local 1</option>
+                        <option value="Local 2">Local 2</option>
+                        <option value="Manutención">Manutención</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="monto">Valor Recibido (COP)</label>
+                    <input type="number" id="monto" placeholder="Ej. 800000" min="0" step="1000" required>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn-primary">+ Guardar Pago</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tabla Principal (Informativa) -->
+    <div class="panel">
+        <div class="panel-title">Histórico de Pagos Validados</div>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>PERIODO</th>
+                        <th>UNIDAD / INMUEBLE</th>
+                        <th>VALOR RECIBIDO (COP)</th>
+                        <th class="admin-only col-accion">ACCIÓN</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-cuerpo">
+                    <!-- Dinámico -->
+                </tbody>
+            </table>
+        </div>
+        <div class="actions-bar">
+            <span id="contador-registros" style="font-size: 0.85rem; color: #64748b;">Mostrando 0 registros</span>
+            <button onclick="exportarExcel()" style="background: #10b981; color: white; border: none; cursor: pointer; padding: 10px 16px; border-radius: 6px; font-weight: bold;">Exportar a Excel (.xlsx)</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CLAVE_ADMIN = '2405'; // Cambia esta contraseña por la que desees
+    let esAdmin = false;
+
+    const datosMatrizMatriz = [
+        { fecha: 'feb-25', 'Apartaestudio 1': 450000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 470000, 'Apartaestudio 4': 470000, 'Apartaestudio 5': 450000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 0, 'Apartaestudio 8': 470000, 'Local 1': 620000, 'Local 2': 690000, 'Manutención': 1880000 },
+        { fecha: 'ene-25', 'Apartaestudio 1': 420000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 470000, 'Apartaestudio 4': 470000, 'Apartaestudio 5': 450000, 'Apartaestudio 6': 450000, 'Apartaestudio 7': 450000, 'Apartaestudio 8': 470000, 'Local 1': 620000, 'Local 2': 690000, 'Manutención': 2416900 },
+        { fecha: 'dic-24', 'Apartaestudio 1': 420000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 420000, 'Apartaestudio 4': 470000, 'Apartaestudio 5': 450000, 'Apartaestudio 6': 450000, 'Apartaestudio 7': 430000, 'Apartaestudio 8': 450000, 'Local 1': 620000, 'Local 2': 690000, 'Manutención': 2360567 },
+        { fecha: 'nov-24', 'Apartaestudio 1': 420000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 420000, 'Apartaestudio 4': 420000, 'Apartaestudio 5': 450000, 'Apartaestudio 6': 450000, 'Apartaestudio 7': 430000, 'Apartaestudio 8': 450000, 'Local 1': 620000, 'Local 2': 690000, 'Manutención': 1630000 },
+        { fecha: 'oct-24', 'Apartaestudio 1': 420000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 420000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 430000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 420000, 'Apartaestudio 8': 450000, 'Local 1': 620000, 'Local 2': 690000, 'Manutención': 1866850 },
+        { fecha: 'ago-24', 'Apartaestudio 1': 420000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 450000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 420000, 'Apartaestudio 8': 450000, 'Local 1': 0, 'Local 2': 0, 'Manutención': 1554900 },
+        { fecha: 'jun-24', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 2030750 },
+        { fecha: 'may-24', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 420000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 400000, 'Local 1': 300000, 'Local 2': 620000, 'Manutención': 2130600 },
+        { fecha: 'abr-24', 'Apartaestudio 1': 0, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1747500 },
+        { fecha: 'mar-24', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1873300 },
+        { fecha: 'feb-24', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1991900 },
+        { fecha: 'ene-24', 'Apartaestudio 1': 0, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 380000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 2920021 },
+        { fecha: 'dic-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 0, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 2256800 },
+        { fecha: 'nov-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 0, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1473800 },
+        { fecha: 'oct-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 1200000, 'Apartaestudio 3': 400000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1918750 },
+        { fecha: 'sep-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 0, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1646050 },
+        { fecha: 'ago-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 0, 'Local 1': 361000, 'Local 2': 620000, 'Manutención': 2200000 },
+        { fecha: 'jul-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 0, 'Local 1': 420000, 'Local 2': 620000, 'Manutención': 1700000 },
+        { fecha: 'jun-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 370000, 'Local 2': 620000, 'Manutención': 1743500 },
+        { fecha: 'abr-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 370000, 'Local 2': 620000, 'Manutención': 2444000 },
+        { fecha: 'may-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 370000, 'Local 2': 620000, 'Manutención': 1875500 },
+        { fecha: 'mar-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 0, 'Local 1': 420000, 'Local 2': 560000, 'Manutención': 1593000 },
+        { fecha: 'feb-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 420000, 'Local 2': 620000, 'Manutención': 2296700 },
+        { fecha: 'ene-23', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 500000, 'Manutención': 2446700 },
+        { fecha: 'dic-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 2556000 },
+        { fecha: 'nov-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 0, 'Manutención': 2242000 },
+        { fecha: 'feb-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 380000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 380000, 'Local 1': 0, 'Local 2': 620000, 'Manutención': 1397000 },
+        { fecha: 'oct-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 400000, 'Local 1': 620000, 'Local 2': 420000, 'Manutención': 2525600 },
+        { fecha: 'sep-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 0, 'Local 1': 620000, 'Local 2': 420000, 'Manutención': 1938200 },
+        { fecha: 'ago-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 400000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 400000, 'Apartaestudio 8': 0, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1843000 },
+        { fecha: 'jul-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 380000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 2248000 },
+        { fecha: 'jun-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 400000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 380000, 'Local 1': 620000, 'Local 2': 600000, 'Manutención': 2011600 },
+        { fecha: 'may-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 190000, 'Apartaestudio 5': 0, 'Apartaestudio 6': 0, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 380000, 'Local 1': 620000, 'Local 2': 600000, 'Manutención': 1443100 },
+        { fecha: 'abr-22', 'Apartaestudio 1': 400000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 380000, 'Apartaestudio 6': 380000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 0, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1878974 },
+        { fecha: 'mar-22', 'Apartaestudio 1': 0, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 380000, 'Apartaestudio 6': 380000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 380000, 'Local 1': 620000, 'Local 2': 620000, 'Manutención': 1759350 },
+        { fecha: 'ene-22', 'Apartaestudio 1': 380000, 'Apartaestudio 2': 0, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 190000, 'Apartaestudio 5': 380000, 'Apartaestudio 6': 380000, 'Apartaestudio 7': 380000, 'Apartaestudio 8': 250000, 'Local 1': 630000, 'Local 2': 620000, 'Manutención': 1871750 },
+        { fecha: 'dic-21', 'Apartaestudio 1': 0, 'Apartaestudio 2': 370000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 190000, 'Apartaestudio 5': 370000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 0, 'Apartaestudio 8': 380000, 'Local 1': 700000, 'Local 2': 620000, 'Manutención': 1311150 },
+        { fecha: 'nov-21', 'Apartaestudio 1': 370000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 360000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 370000, 'Apartaestudio 6': 380000, 'Apartaestudio 7': 350000, 'Apartaestudio 8': 330000, 'Local 1': 800000, 'Local 2': 620000, 'Manutención': 1672000 },
+        { fecha: 'oct-21', 'Apartaestudio 1': 150000, 'Apartaestudio 2': 400000, 'Apartaestudio 3': 380000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 155000, 'Apartaestudio 6': 0, 'Apartaestudio 7': 370000, 'Apartaestudio 8': 380000, 'Local 1': 400000, 'Local 2': 620000, 'Manutención': 1500000 },
+        { fecha: 'sep-21', 'Apartaestudio 1': 379000, 'Apartaestudio 2': 126000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 410000, 'Apartaestudio 6': 400000, 'Apartaestudio 7': 0, 'Apartaestudio 8': 380000, 'Local 1': 820000, 'Local 2': 620000, 'Manutención': 1536000 },
+        { fecha: 'ago-21', 'Apartaestudio 1': 350000, 'Apartaestudio 2': 380000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 410000, 'Apartaestudio 6': 184000, 'Apartaestudio 7': 370000, 'Apartaestudio 8': 380000, 'Local 1': 800000, 'Local 2': 610000, 'Manutención': 1157900 },
+        { fecha: 'jul-21', 'Apartaestudio 1': 350000, 'Apartaestudio 2': 380000, 'Apartaestudio 3': 370000, 'Apartaestudio 4': 380000, 'Apartaestudio 5': 410000, 'Apartaestudio 6': 184000, 'Apartaestudio 7': 370000, 'Apartaestudio 8': 380000, 'Local 1': 790000, 'Local 2': 620000, 'Manutención': 1275000 }
+    ];
+
+    let datos = JSON.parse(localStorage.getItem('pagos_protected_v9')) || [];
+
+    if(datos.length === 0) {
+        let contador = 1;
+        datosMatrizMatriz.forEach(fila => {
+            Object.keys(fila).forEach(col => {
+                if(col !== 'fecha') {
+                    const monto = fila[col];
+                    if(monto > 0) {
+                        datos.push({
+                            id: contador++,
+                            fecha: fila.fecha,
+                            unidad: col,
+                            monto: monto
+                        });
+                    }
+                }
+            });
+        });
+        localStorage.setItem('pagos_protected_v9', JSON.stringify(datos));
+    }
+
+    const formatearCOP = (val) => {
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            maximumFractionDigits: 0
+        }).format(val);
+    };
+
+    function toggleAdmin() {
+        if(!esAdmin) {
+            const claveIngresada = prompt('Ingrese la clave de administrador para habilitar la edición:');
+            if(claveIngresada === CLAVE_ADMIN) {
+                esAdmin = true;
+                document.getElementById('btn-login').textContent = 'Cerrar Modo Admin 🔓';
+                document.getElementById('btn-login').style.background = '#22c55e';
+                document.getElementById('btn-login').style.color = 'white';
+                actualizarVistasAdmin();
+            } else if(claveIngresada !== null) {
+                alert('Clave incorrecta. Modo solo lectura activado.');
+            }
+        } else {
+            esAdmin = false;
+            document.getElementById('btn-login').textContent = 'Acceso Administrador 🔒';
+            document.getElementById('btn-login').style.background = '#cbd5e1';
+            document.getElementById('btn-login').style.color = '#334155';
+            actualizarVistasAdmin();
+        }
+    }
+
+    function actualizarVistasAdmin() {
+        const elementosAdmin = document.querySelectorAll('.admin-only');
+        elementosAdmin.forEach(el => {
+            el.style.display = esAdmin ? (el.tagName === 'TH' || el.tagName === 'TD' ? 'table-cell' : 'block') : 'none';
+        });
+        filtrarDatos();
+    }
+
+    function guardarDatos() {
+        localStorage.setItem('pagos_protected_v9', JSON.stringify(datos));
+        actualizarInterfaz();
+    }
+
+    document.getElementById('form-registro').addEventListener('submit', function(e) {
+        e.preventDefault();
+        if(!esAdmin) return;
+
+        const nuevoRegistro = {
+            id: Date.now(),
+            fecha: document.getElementById('fecha').value,
+            unidad: document.getElementById('apartaestudio').value,
+            monto: parseFloat(document.getElementById('monto').value)
+        };
+
+        datos.unshift(nuevoRegistro);
+        guardarDatos();
+        
+        document.getElementById('monto').value = '';
+    });
+
+    function eliminarRegistro(id) {
+        if(!esAdmin) return;
+        if(confirm('¿Desea eliminar este registro de pago?')) {
+            datos = datos.filter(item => item.id !== id);
+            guardarDatos();
+        }
+    }
+
+    function mostrarTodos() {
+        document.getElementById('filtro-apartaestudio').value = 'TODOS';
+        document.getElementById('filtro-fecha').value = '';
+        renderTabla(datos);
+    }
+
+    function filtrarDatos() {
+        const unidadSelec = document.getElementById('filtro-apartaestudio').value;
+        const fechaSelec = document.getElementById('filtro-fecha').value.toLowerCase().trim();
+
+        const filtrados = datos.filter(item => {
+            const coincideUnidad = unidadSelec === 'TODOS' || item.unidad === unidadSelec;
+            const coincideFecha = !fechaSelec || item.fecha.toLowerCase().includes(fechaSelec);
+            return coincideUnidad && coincideFecha;
+        });
+
+        renderTabla(filtrados);
+    }
+
+    function actualizarInterfaz() {
+        filtrarDatos();
+    }
+
+    function renderTabla(lista) {
+        const tbody = document.getElementById('tabla-cuerpo');
+        tbody.innerHTML = '';
+
+        let sumaTotal = 0;
+
+        if(lista.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${esAdmin ? 4 : 3}" style="text-align: center; color: #94a3b8; padding: 20px;">No se encontraron registros de pagos para la consulta seleccionada.</td></tr>`;
+            document.getElementById('kpi-total-pagos').textContent = formatearCOP(0);
+            document.getElementById('kpi-total-registros').textContent = '0';
+            document.getElementById('contador-registros').textContent = 'Mostrando 0 registros';
+            return;
+        }
+
+        lista.forEach(item => {
+            sumaTotal += item.monto;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${item.fecha}</strong></td>
+                <td><strong style="color: var(--primary);">${item.unidad}</strong></td>
+                <td><strong style="color: var(--success);">${formatearCOP(item.monto)}</strong></td>
+                ${esAdmin ? `<td><button onclick="eliminarRegistro(${item.id})" style="color: var(--danger); border: none; background: none; cursor: pointer; font-weight: bold;">✕</button></td>` : ''}
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('kpi-total-pagos').textContent = formatearCOP(sumaTotal);
+        document.getElementById('kpi-total-registros').textContent = lista.length;
+        document.getElementById('contador-registros').textContent = `Mostrando ${lista.length} de ${datos.length} registros`;
+    }
+
+    function exportarExcel() {
+        const unidadSelec = document.getElementById('filtro-apartaestudio').value;
+        const fechaSelec = document.getElementById('filtro-fecha').value.toLowerCase().trim();
+
+        const filtrados = datos.filter(item => {
+            const coincideUnidad = unidadSelec === 'TODOS' || item.unidad === unidadSelec;
+            const coincideFecha = !fechaSelec || item.fecha.toLowerCase().includes(fechaSelec);
+            return coincideUnidad && coincideFecha;
+        });
+
+        const filasExcel = filtrados.map(d => ({
+            'PERIODO': d.fecha,
+            'UNIDAD / INMUEBLE': d.unidad,
+            'VALOR RECIBIDO (COP)': d.monto
+        }));
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(filasExcel);
+
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            const cellRef = XLSX.utils.encode_cell({ r: R, c: 2 });
+            if (ws[cellRef]) {
+                ws[cellRef].z = '"$"#,##0';
+            }
+        }
+
+        ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 25 }];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Pagos Consolidados");
+        XLSX.writeFile(wb, `Reporte_Pagos_Inmuebles_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    actualizarInterfaz();
+</script>
+
+</body>
+</html>
