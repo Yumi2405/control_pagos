@@ -7,24 +7,42 @@
     <!-- Librería para exportar nativamente a Excel (.xlsx) -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 	<script>
-  // Pega aquí la URL que copiaste de Google Apps Script
+  // URL de tu Google Apps Script
   const API_URL = "https://script.google.com/macros/s/AKfycbxhNU1MZrlngOES0Ot7mOsgoTP0AWwhLMRivBXXU95Eqz32mkRXZvuBBdJblgO2Dy4/exec";
 
-  // Función para cargar los datos en tu página al abrirla
-  async function cargarPagos() {
+  // Función para cargar los datos desde Google Sheets al abrir la página
+  async function cargarPagosDesdeSheets() {
     try {
       const respuesta = await fetch(API_URL);
-      const datos = await respuesta.json();
-      console.log("Datos cargados correctamente:", datos);
+      const dataRaw = await respuesta.json();
+      console.log("Datos cargados correctamente desde Sheets:", dataRaw);
       
-      // Aquí puedes programar cómo mostrar los datos en tu tabla HTML
+      // Mapeamos los datos para adaptarlos exactamente a lo que tu tabla espera
+      window.datosRemotos = dataRaw.map(item => {
+        // Limpiamos la fecha si viene en formato ISO largo (ej: "2026-02-25T05:00:00.000Z" -> "2026-02-25")
+        let fechaFormateada = item.fecha ? item.fecha.split('T')[0] : '';
+        
+        return {
+          id: item.id,
+          fecha: fechaFormateada,
+          unidad: item.unidad,
+          monto: Number(item.valor) || 0 // Adaptamos 'valor' de la API a 'monto' de tu tabla
+        };
+      });
+
+      // Si tu aplicación usa la variable global 'datos', la reemplazamos con los datos de Google Sheets
+      if (typeof datos !== 'undefined') {
+        datos = window.datosRemotos;
+        actualizarInterfaz(); // Refresca la tabla y los KPIs automáticamente
+      }
+
     } catch (error) {
       console.error("Error al conectar con Google Sheets:", error);
     }
   }
 
-  // Llamar a la función al cargar la página
-  window.onload = cargarPagos;
+  // Ejecutar al cargar la ventana
+  window.addEventListener('DOMContentLoaded', cargarPagosDesdeSheets);
 </script>
     <style>
         :root {
